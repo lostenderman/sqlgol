@@ -36,8 +36,7 @@ CREATE SEQUENCE iteration_id_seq START WITH 1 INCREMENT BY 1;
 
 CREATE TABLE Player (
     player_id NUMBER PRIMARY KEY,
-    player_name VARCHAR2(20),
-    player_email VARCHAR2(40)
+    player_name VARCHAR2(20)
 );
 
 CREATE TABLE Pattern (
@@ -59,9 +58,9 @@ CREATE TABLE Game (
 CREATE TABLE Iteration (
     iteration_id NUMBER PRIMARY KEY,
     idx NUMBER,
+    pattern_state NVARCHAR2(4000),
     game_id NUMBER,
-    FOREIGN KEY (game_id) REFERENCES Game(game_id) ON DELETE CASCADE,
-    pattern_state NVARCHAR2(4000)
+    FOREIGN KEY (game_id) REFERENCES Game(game_id) ON DELETE CASCADE
 );
 
 -- Secondary
@@ -78,9 +77,9 @@ CREATE TABLE LatestUsedPattern (
 -- SEED TABLES --
 -----------------
 
-INSERT INTO Player VALUES (player_id_seq.NEXTVAL, 'Andy', 'andy@mail.com');
-INSERT INTO Player VALUES (player_id_seq.NEXTVAL, 'Feri', 'feri@mail.com');
-INSERT INTO Player VALUES (player_id_seq.NEXTVAL, 'Ema', 'ema@mail.com');
+INSERT INTO Player VALUES (player_id_seq.NEXTVAL, 'Andy');
+INSERT INTO Player VALUES (player_id_seq.NEXTVAL, 'Feri');
+INSERT INTO Player VALUES (player_id_seq.NEXTVAL, 'Ema');
 
 INSERT INTO Pattern VALUES (
     pattern_id_seq.NEXTVAL,
@@ -185,8 +184,8 @@ END getCell;
 /
 
 CREATE OR REPLACE FUNCTION replaceCharOnBoard(board NVARCHAR2, x INT, y INT, new_char CHAR) RETURN NVARCHAR2 IS
-    height INT := getHeight(input_state);
-    width INT := getWidth(input_state);
+    height INT := getHeight(board);
+    width INT := getWidth(board);
     position INT := y * (width + 1) + x;
     new_board NVARCHAR2(4000);
 BEGIN
@@ -306,7 +305,7 @@ BEGIN
 
     v_padded_pattern_state := putPatternOnBoard(v_pattern_state);
 
-    INSERT INTO Iteration VALUES (iteration_id_seq.NEXTVAL, 1, :NEW.game_id, v_padded_pattern_state);
+    INSERT INTO Iteration VALUES (iteration_id_seq.NEXTVAL, 1, v_padded_pattern_state, :NEW.game_id);
 
     FOR i IN 2..:NEW.step_count LOOP
         v_next_pattern_state := step(v_padded_pattern_state);
@@ -315,7 +314,7 @@ BEGIN
             EXIT;
         END IF;
 
-        INSERT INTO Iteration VALUES (iteration_id_seq.NEXTVAL, i, :NEW.game_id, v_next_pattern_state);
+        INSERT INTO Iteration VALUES (iteration_id_seq.NEXTVAL, i, v_next_pattern_state, :NEW.game_id);
 
         v_padded_pattern_state := v_next_pattern_state;
     END LOOP;
@@ -336,9 +335,48 @@ BEGIN
 END;
 /
 
+-------------
+-- CURSORS --
+-------------
+
+-- Print iterations of a single game
+
+CREATE OR REPLACE PROCEDURE print_game(game_id INT) IS
+  CURSOR iterations IS SELECT * FROM Iteration WHERE game_id = game_id;
+BEGIN
+  FOR iteration IN iterations LOOP
+    DBMS_OUTPUT.PUT_LINE(iteration.pattern_state);
+  END LOOP;
+END;
+/
+
+-- Generate games for each pattern
+
+CREATE OR REPLACE PROCEDURE add_games_for_patterns IS
+  CURSOR patterns IS SELECT * FROM Pattern;
+BEGIN
+  FOR pattern IN patterns LOOP
+    INSERT INTO Game (game_id, step_count, player_id, pattern_id)
+    VALUES (
+        game_id_seq.NEXTVAL,
+        10,
+        (SELECT player_id FROM (SELECT player_id FROM Player ORDER BY DBMS_RANDOM.RANDOM) WHERE ROWNUM = 1),
+        pattern.pattern_id
+    );
+  END LOOP;
+END;
+/
+
 --------------------
 -- GENERATE GAMES --
 --------------------
+
+BEGIN
+  add_games_for_patterns;
+END;
+/
+
+-- Generate random games
 
 BEGIN
     FOR i IN 1..10 LOOP
@@ -353,48 +391,6 @@ BEGIN
     COMMIT;
 END;
 /
-
--------------
--- CURSORS --
--------------
-
--- Print iterations of a single game (if DBMS_OUTPUT.PUT_LINE would work)
-
-CREATE OR REPLACE PROCEDURE print_game(game_id INT) IS
-  CURSOR iterations IS SELECT * FROM Iteration WHERE game_id = game_id;
-BEGIN
-  FOR iteration IN iterations LOOP
-    DBMS_OUTPUT.PUT_LINE(iteration.pattern_state);
-  END LOOP;
-END;
-/
-
-------------
--- INSERT --
-------------
-
--- INSERT INTO Pattern VALUES (
---     pattern_id_seq.NEXTVAL,
---     'Long Glider',
---     '...',
---     '         ' || CHR(10) || 
---     '  X      ' || CHR(10) || 
---     '   X     ' || CHR(10) || 
---     ' XXX     ' || CHR(10) || 
---     '         ' || CHR(10) || 
---     '         ' || CHR(10) || 
---     '         ' || CHR(10) || 
---     '         ' || CHR(10) || 
---     '         ' || CHR(10)
--- );
-
--- INSERT INTO Game (game_id, step_count, player_id, pattern_id)
--- VALUES (
---     game_id_seq.NEXTVAL,
---     20,
---     (SELECT player_id FROM (SELECT player_id FROM Player ORDER BY DBMS_RANDOM.RANDOM) WHERE ROWNUM = 1),
---     (SELECT pattern_id FROM (SELECT pattern_id FROM Pattern ORDER BY DBMS_RANDOM.RANDOM) WHERE ROWNUM = 1)
--- );
 
 ------------
 -- SELECT --
@@ -437,39 +433,74 @@ JOIN Game g ON p.player_id = g.player_id
 GROUP BY p.player_id, p.player_name
 HAVING COUNT(DISTINCT g.pattern_id) >= 3;
 
+-- Get all games of given pattern
+
+SELECT
+    g.game_id,
+    g.step_count,
+    p.pattern_id,
+    p.pattern_name
+FROM
+    Game g
+JOIN
+    Pattern p ON g.pattern_id = p.pattern_id
+WHERE
+    p.pattern_name = 'Glider';
+
+-- Get all iterations of given game
+
+SELECT
+    i.idx,
+    i.pattern_state
+FROM
+    iteration i
+WHERE
+    i.game_id = 1
+ORDER BY
+    i.idx;
+
+-- Get all games of patterns
+
+SELECT
+    p.pattern_name,
+    g.game_id,
+    g.step_count
+FROM
+    Game g
+JOIN
+    Pattern p ON g.pattern_id = p.pattern_id
+ORDER BY
+    p.pattern_name,
+    g.step_count;
+
+-- Patterns with game id with most iterations
+
+SELECT
+    p.pattern_id,
+    p.pattern_name,
+    g.game_id
+FROM
+    Pattern p
+JOIN (
+    SELECT
+        g.pattern_id,
+        MAX(i.iteration_id) AS max_iterations
+    FROM
+        Game g
+    JOIN
+        Iteration i ON g.game_id = i.game_id
+    GROUP BY
+        g.pattern_id
+) max_iter ON p.pattern_id = max_iter.pattern_id
+JOIN
+    Game g ON p.pattern_id = g.pattern_id
+JOIN
+    Iteration i ON g.game_id = i.game_id
+WHERE
+    i.iteration_id = max_iter.max_iterations
+ORDER BY
+    p.pattern_id;
+
 ---------------
 -- GAME OVER --
 ---------------
-
-
-
-
------------
--- DEBUG --
------------
-
--- DELETE FROM Iteration 
--- WHERE iteration_id > 99;
-
--- DECLARE
---     v_pattern_state NVARCHAR2(4000);
---     v_next_pattern_state NVARCHAR2(4000);
--- BEGIN
---     v_pattern_state :=     
---     'XX  ' || CHR(10) || 
---     'XX  ' || CHR(10) || 
---     '    ' || CHR(10);
-
---     v_next_pattern_state := countLiveNeighbors(v_pattern_state, 1, 1);
---     INSERT INTO Iteration VALUES (100, 1, 1, v_pattern_state);
---     INSERT INTO Iteration VALUES (101, 1, 2, v_next_pattern_state);
--- END;
--- /
-
--- SELECT * FROM Iteration 
--- WHERE iteration_id > 99
--- ORDER BY pattern_id, idx;
-
--- Iteration life by pattern
-
--- SELECT * FROM Iteration; 
