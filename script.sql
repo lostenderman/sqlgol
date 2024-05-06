@@ -12,16 +12,32 @@ Game of Life, now in SQL.
 -- DROP TABLES --
 -----------------
 
-DROP TABLE LatestUsedPattern;
-DROP TABLE Iteration;
-DROP TABLE Game;
-DROP TABLE Pattern;
-DROP TABLE Player;
+BEGIN
+   EXECUTE IMMEDIATE 'DROP TABLE ' || 'LatestUsedPattern';
+   EXECUTE IMMEDIATE 'DROP TABLE ' || 'Iteration';
+   EXECUTE IMMEDIATE 'DROP TABLE ' || 'Game';
+   EXECUTE IMMEDIATE 'DROP TABLE ' || 'Pattern';
+   EXECUTE IMMEDIATE 'DROP TABLE ' || 'Player';
+EXCEPTION
+   WHEN OTHERS THEN
+      IF SQLCODE != -942 THEN
+         RAISE;
+      END IF;
+END;
+/
 
-DROP SEQUENCE player_id_seq;
-DROP SEQUENCE pattern_id_seq;
-DROP SEQUENCE game_id_seq;
-DROP SEQUENCE iteration_id_seq;
+BEGIN
+   EXECUTE IMMEDIATE 'DROP SEQUENCE ' || 'player_id_seq';
+   EXECUTE IMMEDIATE 'DROP SEQUENCE ' || 'pattern_id_seq';
+   EXECUTE IMMEDIATE 'DROP SEQUENCE ' || 'game_id_seq';
+   EXECUTE IMMEDIATE 'DROP SEQUENCE ' || 'iteration_id_seq';
+EXCEPTION
+   WHEN OTHERS THEN
+      IF SQLCODE != -2289 THEN
+         RAISE;
+      END IF;
+END;
+/
 
 -------------------
 -- CREATE TABLES --
