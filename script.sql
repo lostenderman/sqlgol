@@ -403,14 +403,21 @@ SELECT
     p.pattern_name, 
     g.step_count as requested, 
     i.iteration_count as actual
-FROM Game g
-JOIN Pattern p ON g.pattern_id = p.pattern_id
+FROM 
+    Game g
+JOIN 
+    Pattern p ON g.pattern_id = p.pattern_id
 LEFT JOIN (
-    SELECT game_id, COUNT(*) AS iteration_count
-    FROM Iteration
-    GROUP BY game_id
+    SELECT 
+        game_id, 
+        COUNT(*) AS iteration_count
+    FROM 
+        Iteration
+    GROUP BY 
+        game_id
 ) i ON g.game_id = i.game_id
-WHERE i.iteration_count < g.step_count;
+WHERE 
+    i.iteration_count < g.step_count;
 
 -- Patterns and the number of player that have run them at least once
 
@@ -418,9 +425,12 @@ SELECT
     p.pattern_id,
     p.pattern_name, 
     COUNT(DISTINCT g.player_id) AS player_count
-FROM Pattern p
-JOIN Game g ON p.pattern_id = g.pattern_id
-GROUP BY p.pattern_id, p.pattern_name;
+FROM 
+    Pattern p
+JOIN 
+    Game g ON p.pattern_id = g.pattern_id
+GROUP BY 
+    p.pattern_id, p.pattern_name;
 
 -- Players that have tried at least three patterns
 
@@ -428,10 +438,14 @@ SELECT
     p.player_id, 
     p.player_name, 
     COUNT(DISTINCT g.pattern_id) AS pattern_count
-FROM Player p
-JOIN Game g ON p.player_id = g.player_id
-GROUP BY p.player_id, p.player_name
-HAVING COUNT(DISTINCT g.pattern_id) >= 3;
+FROM 
+    Player p
+JOIN 
+    Game g ON p.player_id = g.player_id
+GROUP BY 
+    p.player_id, p.player_name
+HAVING 
+    COUNT(DISTINCT g.pattern_id) >= 3;
 
 -- Get all games of given pattern
 
@@ -447,18 +461,6 @@ JOIN
 WHERE
     p.pattern_name = 'Glider';
 
--- Get all iterations of given game
-
-SELECT
-    i.idx,
-    i.pattern_state
-FROM
-    iteration i
-WHERE
-    i.game_id = 1
-ORDER BY
-    i.idx;
-
 -- Get all games of patterns
 
 SELECT
@@ -472,6 +474,29 @@ JOIN
 ORDER BY
     p.pattern_name,
     g.step_count;
+
+-- Show latest used pattern by player
+
+SELECT 
+    p.player_name, pt.pattern_name
+FROM 
+    Player p
+JOIN 
+    LatestUsedPattern lup ON p.player_id = lup.player_id
+JOIN 
+    Pattern pt ON lup.pattern_id = pt.pattern_id;
+
+-- Get all iterations of given game
+
+SELECT
+    i.idx,
+    i.pattern_state
+FROM
+    iteration i
+WHERE
+    i.game_id = 1
+ORDER BY
+    i.idx;
 
 -- Patterns with game id with most iterations
 
