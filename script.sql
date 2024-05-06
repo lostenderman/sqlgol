@@ -51,39 +51,39 @@ CREATE SEQUENCE iteration_id_seq START WITH 1 INCREMENT BY 1;
 -- Primary
 
 CREATE TABLE Player (
-    player_id NUMBER PRIMARY KEY,
-    player_name VARCHAR2(20)
+    player_id NUMBER PRIMARY KEY NOT NULL,
+    player_name VARCHAR2(20) NOT NULL
 );
 
 CREATE TABLE Pattern (
-    pattern_id NUMBER PRIMARY KEY,
-    pattern_name VARCHAR2(40),
-    pattern_description VARCHAR2(100),
-    pattern_shape NVARCHAR2(4000)
+    pattern_id NUMBER PRIMARY KEY NOT NULL,
+    pattern_name VARCHAR2(40) NOT NULL,
+    pattern_description VARCHAR2(100) NOT NULL,
+    pattern_shape NVARCHAR2(4000) NOT NULL
 );
 
 CREATE TABLE Game (
-    game_id NUMBER PRIMARY KEY,
-    step_count NUMBER,
-    player_id NUMBER,
-    pattern_id NUMBER,
+    game_id NUMBER PRIMARY KEY NOT NULL,
+    step_count NUMBER NOT NULL,
+    player_id NUMBER NOT NULL,
+    pattern_id NUMBER NOT NULL,
     FOREIGN KEY (player_id) REFERENCES Player(player_id) ON DELETE CASCADE,
     FOREIGN KEY (pattern_id) REFERENCES Pattern(pattern_id) ON DELETE CASCADE
 );
 
 CREATE TABLE Iteration (
-    iteration_id NUMBER PRIMARY KEY,
-    idx NUMBER,
-    pattern_state NVARCHAR2(4000),
-    game_id NUMBER,
+    iteration_id NUMBER PRIMARY KEY NOT NULL,
+    idx NUMBER NOT NULL,
+    pattern_state NVARCHAR2(4000) NOT NULL,
+    game_id NUMBER NOT NULL,
     FOREIGN KEY (game_id) REFERENCES Game(game_id) ON DELETE CASCADE
 );
 
 -- Secondary
 
 CREATE TABLE LatestUsedPattern (
-    player_id NUMBER,
-    pattern_id NUMBER,
+    player_id NUMBER NOT NULL,
+    pattern_id NUMBER NOT NULL,
     FOREIGN KEY (player_id) REFERENCES Player(player_id) ON DELETE CASCADE,
     FOREIGN KEY (pattern_id) REFERENCES Pattern(pattern_id) ON DELETE CASCADE,
     PRIMARY KEY (player_id, pattern_id)
